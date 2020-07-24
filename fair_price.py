@@ -1,5 +1,6 @@
 import logging, time, argparse, csv, json
 import pandas as pd
+import openpyxl as pxl
 from datetime import date
 
 from raw import Raw
@@ -57,8 +58,8 @@ def get_args():
     args = parser.parse_args()
     return args.override_in, args.write_to_excel, args.level, json.loads(args.sector_tickers)
 
-# source ~/.bash_profile # workon .
-# python3 fair_price.py --l WARNING --w False --o 1 --t '{"Airline":[{"in":1,"sym":"PAYS"}]}'
+# workon .
+# python fair_price.py --l WARNING --w False --o 1 --t '{"Airline":[{"in":1,"sym":"PAYS"}]}'
 def main():
     override_in, write_to_excel, level, in_sector_tickers = get_args()
     sector_tickers_dict = sector_tickers
@@ -109,12 +110,16 @@ def main():
     if write_to_excel:
         today = date.today()
         sheet = today.strftime("%B_%d_%Y")
+        path = './xlsx/fair_prices.xlsx'
 
-        writer = pd.ExcelWriter('fair_price.xlsx', engine='xlsxwriter')
+        workbook = pxl.load_workbook(path)
+        writer = pd.ExcelWriter(path, engine='openpyxl')
+        writer.book = workbook
         df = pd.DataFrame(data_frame)
-        df.to_excel(writer, sheet_name=sheet, startcol=-1)
-        worksheet = writer.sheets[sheet]
-        worksheet.set_column('A:A', 20)
+        df.to_excel(writer, sheet_name=sheet, index=False)
+        writer.sheets[sheet]
+        s = workbook[sheet]
+        s.column_dimensions['A'].width = 20
         writer.save()
 
 if __name__ == "__main__":
