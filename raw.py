@@ -69,28 +69,33 @@ class Raw():
         self.logger.debug(f"current price{current_price}")
         current_price = self._get_float_value(current_price)
 
-        h_l = tree.xpath('//*[@id="quote-summary"]/div[1]/table/tbody/tr[6]/td[2]/text()')
-        self.logger.debug(f'52_wk_h_l_str= {h_l}')
-        self.logger.debug(f'52_wk_h_l_str= {h_l[0].split(" ")}')
-        h_l_list = h_l[0].split(" ")
+        h52wk_drop = 1.0
+        eps_ttm = 1.0
+        try:
+            h_l_list = [1, 1]
+            h_l = tree.xpath('//*[@id="quote-summary"]/div[1]/table/tbody/tr[6]/td[2]/text()')
+            self.logger.debug(f'52_wk_h_l_str= {h_l}')
+            self.logger.debug(f'52_wk_h_l_str= {h_l[0].split(" ")}')
+            h_l_list = h_l[0].split(" ")
 
-        h52wk_drop = 'Not Found'
-        if 'N' not in h_l_list[0] and 'N' not in h_l_list[2]:
-            l = self._get_float_value(h_l_list[0])
-            h = self._get_float_value(h_l_list[2])
+            if 'N' not in h_l_list[0] and 'N' not in h_l_list[2]:
+                l = self._get_float_value(h_l_list[0])
+                h = self._get_float_value(h_l_list[2])
 
-            self.logger.debug(f'52_wk_h: {h}')
-            self.logger.debug(f'52_wk_l= {l}')
-            if h != 0:
-                h52wk_drop = (100 - (current_price / h * 100))
-            self.logger.debug(f'pe drop = {h52wk_drop}')
+                self.logger.debug(f'52_wk_h: {h}')
+                self.logger.debug(f'52_wk_l= {l}')
+                if h != 0:
+                    h52wk_drop = (100 - (current_price / h * 100))
+                self.logger.debug(f'h52wk drop = {h52wk_drop}')
 
-        eps_ttm = tree.xpath('//*[@id="quote-summary"]/div[2]/table/tbody/tr[4]/td[2]/span/text()')
-        self.logger.debug(f"eps ttm {eps_ttm}")
-        if 'N/A' in eps_ttm[0]:
-            eps_ttm = 0
-        else:
-            eps_ttm = self._get_float_value(eps_ttm)
+            eps_ttm = tree.xpath('//*[@id="quote-summary"]/div[2]/table/tbody/tr[4]/td[2]/span/text()')
+            self.logger.debug(f"eps ttm {eps_ttm}")
+            if 'N/A' in eps_ttm[0]:
+                eps_ttm = 0
+            else:
+                eps_ttm = self._get_float_value(eps_ttm)
+        except:
+            self.logger.error("error calculating 52wk drop or eps")            
 
         return current_price, h52wk_drop, eps_ttm
 
