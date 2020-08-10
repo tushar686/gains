@@ -7,7 +7,7 @@ class Raw():
         tree = html.fromstring(page.content)
         print(tree.xpath(x))
     """
-    AVG_KEYS = ['avg_eps_c_q', 'avg_eps_n_q', 'avg_eps_c_y', 'avg_eps_n_y', 'avg_rev_c_q', 'avg_rev_n_q', 'avg_rev_c_y', 'avg_rev_n_y', 'growth_c_q', 'growth_n_q', 'growth_c_y', 'growth_n_y', 'growth_n_5y', 'growth_p_5y']
+    AVG_KEYS = ['eps_c_qr', 'n_qr', 'c_yr', 'n_yr', 'revenue_c_qr', 'n_qr', 'c_yr', 'n_yr', 'growth_c_qr', 'n_qr', 'c_yr', 'n_yr', 'n_5yr', 'prev_5yrs']
 
     def __init__(self, ticker, logger):
         self.ticker = ticker

@@ -69,8 +69,8 @@ def main():
 
     data_frame= {}
     data_frame[''] = ['Current Price', 'EPS 15% Rate', 'Div Growth 20% Rate', 'Div Formula 15% Rate', 'By DCF', 'BB TR Current Rate',
-                      'BB 10% Rate', 'Exp PE Price', 'Exp PB Price', '52wk Drop', 'Returns', 'Safety', 'PE', 'Exp PE',
-                      'PB', 'Exp PB', 'TR'] + Raw.AVG_KEYS
+                      'BB 10% Rate', 'Exp PE Price', 'Exp PB Price', '52wk Drop', 'Returns', 'Safety', 'PE', 
+                      'PB', 'PS', 'TR'] + Raw.AVG_KEYS
 
     for sector, tickers in sector_tickers_dict.items():
         data_frame[sector] = ''
@@ -105,8 +105,10 @@ def main():
                 
                 data_frame[ticker] = [raw_data.current_price, fair_price_by_eps, fair_price_by_div_growth,
                                      fair_price_by_div_formula, intrinsic_value_by_dcf, bb_intrinsic_value_by_treasury_rate, bb_intrinsic_value_by_exp_rate, 
+
                                      round(15 * raw_data.current_price/raw_data.pe, 2), round(1.5 * raw_data.current_price/raw_data.pb, 2), round(raw_data.h52wk_drop, 2),
-                                     raw_data.ret, raw_data.margin, raw_data.pe, 15, raw_data.pb, 1.5, raw_data.latest_treasury_rate] + list(raw_data.growth.values())
+
+                                     raw_data.ret, raw_data.margin, raw_data.pe, raw_data.pb, raw_data.ps, raw_data.latest_treasury_rate] + list(raw_data.growth.values())
     if write_to_excel:
         today = date.today()
         sheet = today.strftime("%B_%d_%Y")
