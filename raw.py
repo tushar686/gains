@@ -17,7 +17,7 @@ class Raw():
         # yahoo/quote
         self.current_price, self.h52wk_drop, self.eps_ttm = self.get_current_price_52wk_drop_eps_ttm()
         # yahoo/key-statistics
-        self.pe, self.pb, self.forward_div_rate, self.shares_outstanding = self.get_current_pe_pb_forward_div_rate_shares_outstanding()
+        self.pe, self.pb, self.ps, self.forward_div_rate, self.shares_outstanding = self.get_current_pe_pb_ps_forward_div_rate_shares_outstanding()
         self.ret = round(((1 / self.pe) * 100), 2)
         self.margin = round(((1 / self.pb) * 100), 2)
         self.book_value = round(self.current_price/self.pb, 2)
@@ -99,13 +99,14 @@ class Raw():
 
         return current_price, h52wk_drop, eps_ttm
 
-    def get_current_pe_pb_forward_div_rate_shares_outstanding(self):
+    def get_current_pe_pb_ps_forward_div_rate_shares_outstanding(self):
         self.logger.debug(f'__________________________________________')
         page = requests.get(f'https://finance.yahoo.com/quote/{self.ticker}/key-statistics')
         tree = html.fromstring(page.content)
 
-        pb = tree.xpath('//*[@data-test="qsp-statistics"]/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[7]/td[2]/text()')
         pe = tree.xpath('//*[@data-test="qsp-statistics"]/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[3]/td[2]/text()')
+        pb = tree.xpath('//*[@data-test="qsp-statistics"]/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[7]/td[2]/text()')
+        ps = tree.xpath('//*[@data-test="qsp-statistics"]/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[6]/td[2]/text()')
         shares_outstanding = tree.xpath('//*[@data-test="qsp-statistics"]/div[3]/div[2]/div/div[2]/div/div/table/tbody/tr[3]/td[2]/text()')
 
         self.logger.debug(f'pb= {pb}')
@@ -124,11 +125,14 @@ class Raw():
 
         pe = self._get_float_value(pe)
         pb = self._get_float_value(pb)
+        ps = self._get_float_value(ps)
 
         if pe == 0:
             pe = 1
         if pb == 0:
             pb = 1
+        if ps == 0:
+            ps = 1            
 
         forward_div_rate = 0
         cnt = str(page.content)
@@ -142,7 +146,7 @@ class Raw():
             self.logger.debug(f'forward_div_rate_str= {forward_div_rate_str}')
             forward_div_rate = self._get_float_value(forward_div_rate_str)
 
-        return pe, pb, forward_div_rate, shares_outstanding
+        return pe, pb, ps, forward_div_rate, shares_outstanding
 
     def get_analyst_estimates_growth_rate_and_avg_forward_eps_growth(self):
         self.logger.debug(f'__________________________________________')

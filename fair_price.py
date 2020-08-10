@@ -59,7 +59,7 @@ def get_args():
     return args.override_in, args.write_to_excel, args.level, json.loads(args.sector_tickers)
 
 # workon .
-# python fair_price.py --l WARNING --w False --o 1 --t '{"Airline":[{"in":1,"sym":"PAYS"}]}'
+# python fair_price.py --l WARNING --w False --o 1 --t '{"Airline":[{"in":1,"sym":"MSFT"}]}'
 def main():
     override_in, write_to_excel, level, in_sector_tickers = get_args()
     sector_tickers_dict = sector_tickers
@@ -68,8 +68,8 @@ def main():
     logger = setup_logger(level)
 
     data_frame= {}
-    data_frame[''] = ['Current Price', 'EPS 15 Rate', 'Div Growth 20 Rate', 'Div Formula 15 Rate', 'By DCF', 'BB TR',
-                      'BB 10 Rate', 'Exp PE Price', 'Exp PB Price', '52wk Drop', 'Returns', 'Safety', 'PE', 'Exp PE',
+    data_frame[''] = ['Current Price', 'EPS 15% Rate', 'Div Growth 20% Rate', 'Div Formula 15% Rate', 'By DCF', 'BB TR Current Rate',
+                      'BB 10% Rate', 'Exp PE Price', 'Exp PB Price', '52wk Drop', 'Returns', 'Safety', 'PE', 'Exp PE',
                       'PB', 'Exp PB', 'TR'] + Raw.AVG_KEYS
 
     for sector, tickers in sector_tickers_dict.items():
