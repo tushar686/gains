@@ -3,3 +3,4 @@ xlsxwriter
 openpyxl
 lxml
 requests
+jinja2
