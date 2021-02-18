@@ -159,6 +159,8 @@ class Raw():
         page = requests.get(f'https://finance.yahoo.com/quote/{self.ticker}/analysis?p={self.ticker}')
         tree = html.fromstring(page.content)
 
+        self.sales_growth_c_q = self._get_float_value( tree.xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[2]/span/text()'))
+        self.sales_growth_n_q = self._get_float_value( tree.xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[3]/span/text()'))
         self.sales_growth_c_y = self._get_float_value( tree.xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[4]/span/text()'))
         self.sales_growth_n_y = self._get_float_value( tree.xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[5]/span/text()'))
         
@@ -166,9 +168,10 @@ class Raw():
         self.growth_n_q =  self._get_float_value(tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[2]/td[2]/text()'))
         self.growth_c_y =  self._get_float_value(tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[3]/td[2]/text()'))
         self.growth_n_y =  self._get_float_value(tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[4]/td[2]/text()'))
-        self.growth_n_5y = self._get_float_value( tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[5]/td[2]/text()'))
-        self.growth_p_5y = self._get_float_value( tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[6]/td[2]/text()'))
+        self.growth_n_5y = self._get_float_value(tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[5]/td[2]/text()'))
+        self.growth_p_5y = self._get_float_value(tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[6]/td[2]/text()'))
 
+        # this is dup but float val required for fair price by eps calculation
         growth_next_5_yrs = tree.xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[5]/td[2]/text()')
         if not growth_next_5_yrs:
             growth_next_5_yrs = ['0']
