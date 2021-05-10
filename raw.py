@@ -81,6 +81,8 @@ class Raw():
         h_l_list = [1, 1]
         h_l = tree.xpath('//*[@id="quote-summary"]/div[1]/table/tbody/tr[6]/td[2]/text()')
         self.logger.debug(f'52_wk_h_l_str= {h_l}')
+        if not h_l:
+            h_l = ['N', 'N']
         self.logger.debug(f'52_wk_h_l_str= {h_l[0].split(" ")}')
         h_l_list = h_l[0].split(" ")
 
@@ -101,7 +103,7 @@ class Raw():
 
         eps_ttm = tree.xpath('//*[@id="quote-summary"]/div[2]/table/tbody/tr[4]/td[2]/span/text()')
         self.logger.debug(f"eps ttm {eps_ttm}")
-        if 'N/A' in eps_ttm[0]:
+        if not eps_ttm or 'N/A' in eps_ttm[0]:
             eps_ttm = 0
         else:
             eps_ttm = self._get_float_value(eps_ttm)
