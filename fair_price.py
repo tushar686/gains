@@ -16,6 +16,7 @@ sector_tickers = {
     # "Airline": [{"in": 1, "sym": "UAL"}, {"in": 1, "sym": "LUV"}, {"in": 1, "sym": "DAL"}],
     # "Cruise": [{"in": 1, "sym": "NCLH"}, {"in": 1, "sym": "CCL"}],
     # "Finance": [{"in": 1, "sym": "V"},{"in": 1, "sym": "IBTX"}], #removed MA
+    
     "Dividend": [{"in": 1, "sym": "LMT"}, {"in": 1, "sym": "LOW"}, {"in": 1, "sym": "HD"}, {"in": 1, "sym": "TSN"}, {"in": 1, "sym": "CVS"}], # removed pg, jnj and clx
     "Aircraft": [{"in": 1, "sym": "BA"}, {"in": 0, "sym": "LHX"}, {"in": 1, "sym": "LMT"}, {"in": 0, "sym": "TDG"}, {"in": 0, "sym": "CVU"}],
     # "Real Estate": [{"in": 0, "sym": "LGIH"}],
@@ -35,8 +36,8 @@ sector_tickers = {
                     {"in": 1, "sym": "CRWD"}, {"in": 1, "sym": "ABNB"}, {"in": 1, "sym": "SNOW"}, 
                     {"in": 1, "sym": "PINS"}, {"in": 1, "sym": "SNAP"}, 
                     {"in": 1, "sym": "TTD"}, {"in": 1, "sym": "FSLY"}, {"in": 1, "sym": "NET"}], #CSLX, ETSY, FSLY, NET Organic growth
-    "Bet": [{"in": 1, "sym": "BB"}, {"in": 1, "sym": "NOK"}, {"in": 1, "sym": "KBNT"},  # comm/adv
-            {"in": 1, "sym": "BNGO"}, {"in": 1, "sym": "TXG"}, {"in": 1, "sym": "VXRT"}, #genomics
+    "Bet": [{"in": 1, "sym": "BB"}, {"in": 1, "sym": "NOK"}, {"in": 1, "sym": "KBNT"}, {"in": 1, "sym": "QS"}, {"in": 1, "sym": "PLUG"},  # comm/adv
+            {"in": 1, "sym": "BNGO"}, {"in": 0, "sym": "TXG"}, {"in": 1, "sym": "VXRT"}, #genomics
             {"in": 0, "sym": "VRM"}, {"in": 0, "sym": "SFT"} #vehicle not interested
             ],
 } 
@@ -144,8 +145,8 @@ def main():
         writer.sheets[sheet_name]
         # set column width
         sheet = workbook[sheet_name]
-        sheet.column_dimensions['A'].width = 20
-        sheet.freeze_panes = 'B4'
+        sheet.column_dimensions['A'].width = 40
+        sheet.freeze_panes = 'A2'
         # save excel file
         writer.save()
 

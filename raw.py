@@ -1,11 +1,22 @@
 from lxml import html
 import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 class Raw():
     """
+        //requests
         page = requests.get('')
         tree = html.fromstring(page.content)
         print(tree.xpath(x))
+
+        //selenium
+options = Options()
+options.add_argument('--headless')
+options.add_argument('--disable-gpu')
+driver = webdriver.Chrome(options=options)
+driver.get(f'https://www.zacks.com/stock/chart/plugfundamental/peg-ratio-ttm')
+ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
         import importlib
         importlib.reload(raw)
@@ -16,6 +27,7 @@ class Raw():
         logger = logging.getLogger('gains')
         ticker = 'MSFT'
         raw_data = raw.Raw(ticker, logger)
+
     """
 
     def __init__(self, ticker, logger):
@@ -38,8 +50,11 @@ class Raw():
         # treasury.gov
         self.get_latest_treasury_rate()
 
-        # https://www.macrotrends.net/stocks/charts/MSFT/microsoft/free-cash-flow
+        # macrotrends
         self.macrotrends_fcf()
+
+        #zacks
+        self.get_peg()
 
     def _get_float_value(self, val):
         self.logger.debug(f"get_float i/p: {val}")
@@ -283,7 +298,6 @@ class Raw():
         self.pb = 0.1
         self.ps = 0.1
         self.price_to_op_cash_flow = 0.1
-        self.peg = 0.1
         tbody = tree.xpath('//*[@id="ratios"]/div/table[2]/tbody/tr')
         for tr_idx in range(len(tbody)):
             key = tree.xpath(f'//*[@id="ratios"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[1]/a/text()')
@@ -299,8 +313,6 @@ class Raw():
                 self.ps = self._get_float_value(val)
             if key == 'Price-to-Operating-Cash-Flow':
                 self.price_to_op_cash_flow = self._get_float_value(val)
-            if key == 'PEG Ratio':
-                self.peg = self._get_float_value(val)
             if key == 'Current Ratio':
                 self.cur_ratio = self._get_float_value(val)
                 
@@ -363,4 +375,29 @@ class Raw():
         self.logger.info(f"fcf_avg {fcf_avg}")
 
         self.avg_fcf_of_last_10_years = fcf_avg
+
+    def get_peg(self):
+            self.logger.debug(f'__________________________________________')
+            # driver = webdriver.PhantomJS()
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')  # Last I checked this was necessary.
+            driver = webdriver.Chrome(options=options)
+            page = driver.get(f'https://www.zacks.com/stock/chart/{self.ticker}/fundamental/peg-ratio-ttm')
+            ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
+
+            peg = 0.0
+
+            if ele:
+                text = ele.text
+                start = text.rfind('= ')
+                if start and start != -1:
+                    end = text.find(')', start)
+                    peg = text[start+2:end]
+
+        
+            self.logger.debug(f"peg = {peg}")
+            self.peg = self._get_float_value(peg)
+
+
 
