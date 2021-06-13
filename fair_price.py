@@ -21,11 +21,11 @@ sector_tickers = {
     "Aircraft": [{"in": 1, "sym": "BA"}, {"in": 0, "sym": "LHX"}, {"in": 1, "sym": "LMT"}, {"in": 0, "sym": "TDG"}, {"in": 0, "sym": "CVU"}],
     # "Real Estate": [{"in": 0, "sym": "LGIH"}],
     "Oil": [{"in": 0, "sym": "CVX"}, {"in": 1, "sym": "IMO"}, {"in": 0, "sym": "COP"}],
-    "Eat": [{"in": 1, "sym": "SBUX"}, {"in": 0, "sym": "MCD"}, {"in": 0, "sym": "PEP"}], # removed cmg, tsn
+    "Eat": [{"in": 1, "sym": "SBUX"}, {"in": 1, "sym": "TTCF"}, {"in": 0, "sym": "MCD"}, {"in": 0, "sym": "PEP"}], # removed cmg, tsn
     "Bank": [{"in": 1, "sym": "PNC"}, {"in": 0, "sym": "USB"}, {"in": 0, "sym": "JPM"}, {"in": 1, "sym": "DFS"}],
     "Tech": [{"in": 1, "sym": "GOOG"}, {"in": 1, "sym": "MSFT"}, {"in": 1, "sym": "AAPL"}],
     "Retail": [{"in": 1, "sym": "NKE"}], # removed TGT, NKE
-    "Solar": [{"in": 0, "sym": "FSLR"}, {"in": 1, "sym": "BE"}, {"in": 1, "sym": "ENPH"}, {"in": 1, "sym": "PLUG"}],
+    "Solar": [{"in": 0, "sym": "FSLR"}, {"in": 0, "sym": "BE"}, {"in": 1, "sym": "ENPH"}, {"in": 1, "sym": "PLUG"}],
     "Semiconductor": [{"in": 1, "sym": "QCOM"}, {"in": 1, "sym": "nvda"}], # removed nvdia
     "Med Growth": [{"in": 1, "sym": "TSLA"}, {"in": 1, "sym": "AMZN"}, {"in": 1, "sym": "AYX"}, 
                    {"in": 1, "sym": "SPLK"}, 
@@ -60,9 +60,15 @@ def get_args():
     return args.override_in, args.write_to_excel, args.level, json.loads(args.sector_tickers)
 
 # workon .
-# do not write: python fair_price.py --t '{"Airline":[{"in":1,"sym":"MSFT"}]}' / python fair_price.py  --l WARNING --w False --o No --t '{"Airline":[{"in":1,"sym":"MSFT"}]}'
-# write only in=1: python fair_price.py --w True
-# write All: python fair_price.py --w True --o Yes
+# do not write: 
+#   python fair_price.py --t '{"Airline":[{"in":1,"sym":"MSFT"}]}' 
+#   python fair_price.py  --l WARNING --w False --o No --t '{"Airline":[{"in":1,"sym":"MSFT"}]}'
+# write with given tickers
+#   python fair_price.py --w True --t '{"Food":[{"in": 1, "sym": "SBUX"}, {"in": 1, "sym": "TTCF"}, {"in": 1, "sym": "UNFI"}, {"in": 1, "sym": "BYND"}]}'
+# write only in=1: 
+#   python fair_price.py --w True
+# write All: 
+#   python fair_price.py --w True --o Yes
 def main():
     override_in, write_to_excel, level, in_sector_tickers = get_args()
     sector_tickers_dict = sector_tickers
@@ -106,22 +112,26 @@ def main():
 
                 data_frame['labels'] = ['EPS 15% Rate', 'Div Growth 20% Rate', 'Div Formula 15% Rate', 'By DCF', 'BB TR Current Rate',
                                         'BB 10% Rate', '15 PE', '1.5 PB', 'TR', 'Mkt Cap', 
-                                        'Current Price', 'SMA 50D', 'SMA 200D', 'Below 52wk H', 'Above 52wk L', 
-                                        'Growth Nxt 5 Yr', 'Growth Past 5 Yr', 'Growth Nxt Yr', 'Growth Cur Yr', 'Growth Nxt Q', 
-                                        'Growth Cur Q', 'Sales Growth Nxt Yr', 'Sales Growth Cur Yr', 'Sales Growth Nxt Q', 'Sales Growth Cur Q', 
-                                        'Rev Growth Past 3 Yr', 'PS', 'PE TTM', 'PE FWD', 'PB', 
-                                        'PEG', 'P-OP-Cash', 'Op Margin', 'Current Ratio', 'Dbt-to-Eqty', 
-                                        'div rate', 'div yield', 'div payout ratio'
+                                        'EV', 'Current Price', 'SMA 50D', 'SMA 200D', 'Below 52wk H', 
+                                        'Above 52wk L', 'Growth Nxt 5 Yr', 'Growth Past 5 Yr', 'Growth Nxt Yr', 'Growth Cur Yr', 
+                                        'Growth Nxt Q', 'Growth Cur Q', 'Sales Growth Nxt Yr', 'Sales Growth Cur Yr', 'Sales Growth Nxt Q', 
+                                        'Sales Growth Cur Q', 'Rev Growth Past 3 Yr', 'PS', 'EVS', 'EV_TO_EBITDA',
+                                        'PE TTM', 'PE FWD', 'PB','PEG', 'P-OP-Cash', 
+                                        'Op Margin', 'Current Ratio', 'Dbt-to-Eqty', 'div rate', 'div yield', 
+                                        'div payout ratio', 'ROE', '#Emp', 'Inst Own', 'Insdier Own', 
+                                        'Short Days'
                             ]
                 
                 data_frame[ticker] = [  fair_price_by_eps, fair_price_by_div_growth, fair_price_by_div_formula, intrinsic_value_by_dcf, bb_intrinsic_value_by_treasury_rate, 
                                         bb_intrinsic_value_by_exp_rate, round(15 * rd.current_price/rd.pe, 2), round(1.5 * rd.current_price/rd.pb, 2), rd.latest_treasury_rate, rd.mkt_cap,
-                                        rd.current_price, rd.sma_50d, rd.sma_200d, rd.h52wk_drop, rd.l52wk_up, 
-                                        rd.growth_next_5_yrs, rd.growth_p_5y, rd.growth_n_y, rd.growth_c_y, rd.growth_n_q, 
-                                        rd.growth_c_q, rd.sales_growth_n_y, rd.sales_growth_c_y, rd.sales_growth_n_q, rd.sales_growth_c_q, 
-                                        rd.rev_growth_3yr, rd.ps, rd.pe, rd.fwd_pe, rd.pb, 
-                                        rd.peg, rd.price_to_op_cash_flow, rd.op_margin, rd.cur_ratio, rd.dbt_to_equity, 
-                                        rd.forward_div_rate, rd.div_yield, rd.div_payout_ratio
+                                        rd.ev, rd.current_price, rd.sma_50d, rd.sma_200d, rd.h52wk_drop, 
+                                        rd.l52wk_up, rd.growth_next_5_yrs, rd.growth_p_5y, rd.growth_n_y, rd.growth_c_y, 
+                                        rd.growth_n_q, rd.growth_c_q, rd.sales_growth_n_y, rd.sales_growth_c_y, rd.sales_growth_n_q, 
+                                        rd.sales_growth_c_q, rd.rev_growth_3yr, rd.ps, rd.ev_to_sales, rd.ev_to_ebitda,
+                                        rd.pe, rd.fwd_pe, rd.pb, rd.peg, rd.price_to_op_cash_flow, 
+                                        rd.op_margin, rd.cur_ratio, rd.dbt_to_equity, rd.forward_div_rate, rd.div_yield, 
+                                        rd.div_payout_ratio, rd.roe, rd.emp, rd.institutaion_ownership, rd.insider_ownership, 
+                                        rd.short_days_to_cover
                                     ]
                 labels = data_frame['labels']
                 ticker_values = data_frame[ticker]
@@ -153,11 +163,12 @@ def main():
 def color(x):
     #color by row lables
     fair_price = x['labels'].isin(['EPS 15% Rate', 'Div Growth 20% Rate', 'Div Formula 15% Rate', 'By DCF', 'BB TR Current Rate', 'BB 10% Rate', '15 PE', '1.5 PB',])
-    price = x['labels'].isin(['Mkt Cap', 'Current Price', 'SMA 50D', 'SMA 200D', 'Below 52wk H', 'Above 52wk L',])
-    price_ratios = x['labels'].isin(['PE TTM', 'PE FWD', 'PB', 'PEG', 'P-OP-Cash', 'PS',])
+    price = x['labels'].isin(['Mkt Cap', 'EV', 'Current Price', 'SMA 50D', 'SMA 200D', 'Below 52wk H', 'Above 52wk L',])
+    price_ratios = x['labels'].isin(['PE TTM', 'PE FWD', 'PB', 'PEG', 'P-OP-Cash', 'PS', 'EVS', 'EV_TO_EBITDA'])
     eps_growth = x['labels'].isin(['Growth Past 5 Yr', 'Growth Nxt 5 Yr', 'Growth Cur Q', 'Growth Nxt Q', 'Growth Cur Yr', 'Growth Nxt Yr',])
     sales_growth = x['labels'].isin(['Rev Growth Past 3 Yr', 'Sales Growth Cur Q', 'Sales Growth Nxt Q', 'Sales Growth Cur Yr', 'Sales Growth Nxt Yr',])
-    debet_margin = x['labels'].isin(['Op Margin', 'Current Ratio', 'Dbt-to-Eqty'])
+    debt_margin = x['labels'].isin(['Op Margin', 'ROE', 'Current Ratio', 'Dbt-to-Eqty'])
+    inside_view = x['labels'].isin(['#Emp', 'Inst Own', 'Insdier Own', 'Short Days'])
     
     df =  pd.DataFrame('', index=x.index, columns=x.columns)
     df.loc[fair_price, :] = 'background-color: #f5f58d'
@@ -165,7 +176,8 @@ def color(x):
     df.loc[price_ratios, :] = 'background-color: #93c47d'
     df.loc[eps_growth, :] = 'background-color: #6699ff'
     df.loc[sales_growth, :] = 'background-color: #ffb366'
-    df.loc[debet_margin, :] = 'background-color: #ea9999'
+    df.loc[debt_margin, :] = 'background-color: #ea9999'
+    df.loc[inside_view, :] = 'background-color: #d0e0e3'
     
     return df
 

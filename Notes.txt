@@ -1,0 +1,14 @@
+ms: insider overview
+    top companies bought/sold
+tr:
+    smart core: sentiment from -> news, blog, analysts, hendge, insiderm fundamentals, technicals
+    insider buy/sold on chart (useful to know what insider thinks about price)
+    similar: know returns relative to compititors
+
+pr:
+    price performance 
+    analyst raitings, fundamental ratings
+
+pf:
+    inst owenership over period of time
+    price performance

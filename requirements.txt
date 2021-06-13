@@ -4,3 +4,4 @@ openpyxl
 lxml
 requests
 jinja2
+selenium

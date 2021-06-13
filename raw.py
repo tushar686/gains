@@ -35,6 +35,13 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         self.logger = logger
         self.logger.debug(f"getting raw data for {self.ticker}")
 
+        options = Options()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')  # Last I checked this was necessary.
+        # self.driver = webdriver.Chrome(options=options)
+        self.driver = webdriver.PhantomJS()
+
+
         self.yahoo_finance_quote()
         self.yahoo_finance_key_statistics()
         self.yahoo_finance_analysis()
@@ -52,6 +59,12 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
         # macrotrends
         self.macrotrends_fcf()
+
+        #marketbeat
+        self.marketbeat_emp_roe()
+        self.marketbeat_inst()
+        self.marketbeat_insider()
+        self.marketbeat_short()
 
         #zacks
         self.get_peg()
@@ -169,6 +182,17 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         self.sma_50d = self._get_float_value(sma_50d)
         self.sma_200d = self._get_float_value(sma_200d)
 
+        ev = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[2]/td[2]/text()')
+        self.logger.debug(f'ev= {ev}')
+        self.ev = self._get_float_value(ev)          
+        
+        ev_to_sales = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[8]/td[2]/text()')
+        self.logger.debug(f'ev_to_sales= {ev_to_sales}')
+        self.ev_to_sales = self._get_float_value(ev_to_sales)
+
+        ev_to_ebitda = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[9]/td[2]/text()')
+        self.logger.debug(f'ev_to_sales= {ev_to_ebitda}')
+        self.ev_to_ebitda = self._get_float_value(ev_to_ebitda)        
 
     # get_analyst_estimates_growth_rate_and_avg_forward_eps_growth
     def yahoo_finance_analysis(self):
@@ -360,10 +384,13 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
     def macrotrends_fcf(self):
         self.logger.debug(f'__________________________________________')
-        page = requests.get(f'https://www.macrotrends.net/stocks/charts/{self.ticker}/microsoft/free-cash-flow')
-        tree = html.fromstring(page.content)
-
         fcf_sum = 0
+        
+        try:
+            page = requests.get(f'https://www.macrotrends.net/stocks/charts/{self.ticker}/microsoft/free-cash-flow')
+            tree = html.fromstring(page.content)
+        except TooManyRedirects:
+            pass
 
         for i in range(1, 11):
             fcf = tree.xpath(f'//*[@id="style-1"]/div[1]/table/tbody/tr[{i}]/td[2]/text()')
@@ -376,15 +403,56 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
         self.avg_fcf_of_last_10_years = fcf_avg
 
+    def marketbeat_emp_roe(self):
+        self.logger.debug(f'__________________________________________')
+        emp = 0
+        
+        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/')
+        tree = html.fromstring(page.content)
+
+        emp = tree.xpath('//*[@id="cphPrimaryContent_tabCompanyProfile"]/div[2]/div[2]/ul[1]/li[11]/strong/text()')
+        self.logger.debug(f"# employees {emp}")
+        self.emp = self._get_float_value(emp)
+        
+        roe = tree.xpath('//*[@id="cphPrimaryContent_tabCompanyProfile"]/div[2]/div[2]/ul[3]/li[4]/strong/text()')
+        self.logger.debug(f"# roe {roe}")
+        self.roe = self._get_float_value(roe)
+
+    def marketbeat_inst(self):
+        self.logger.debug(f'__________________________________________')
+        institutaion_ownership = 0
+        
+        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/institutional-ownership/')
+        tree = html.fromstring(page.content)
+        institutaion_ownership = tree.xpath('//*[@id="cphPrimaryContent_tabInstitutionalOwnership"]/div[1]/text()')
+        self.logger.debug(f"institutaion_ownership {institutaion_ownership}")
+        self.institutaion_ownership = self._get_float_value(institutaion_ownership)
+
+    def marketbeat_insider(self):
+        self.logger.debug(f'__________________________________________')
+        insider_ownership = 0
+        
+        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/insider-trades/')
+        tree = html.fromstring(page.content)
+        insider_ownership = tree.xpath('//*[@id="cphPrimaryContent_tabInsiderTrades"]/div[1]/table/tr[1]/td[2]/text()')
+        self.logger.debug(f"insider_ownership {insider_ownership}")
+        self.insider_ownership = self._get_float_value(insider_ownership)        
+
+    def marketbeat_short(self):
+        self.logger.debug(f'__________________________________________')
+        short_days_to_cover = 0
+        
+        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/short-interest/')
+        tree = html.fromstring(page.content)
+        short_days_to_cover = tree.xpath('//*[@id="cphPrimaryContent_tabShortInterest"]/div[1]/div[1]/table/tbody/tr[5]/td/text()')
+        self.logger.debug(f"short_days_to_cover {short_days_to_cover}")
+        self.short_days_to_cover = self._get_float_value(short_days_to_cover)        
+
+
     def get_peg(self):
             self.logger.debug(f'__________________________________________')
-            # driver = webdriver.PhantomJS()
-            options = Options()
-            options.add_argument('--headless')
-            options.add_argument('--disable-gpu')  # Last I checked this was necessary.
-            driver = webdriver.Chrome(options=options)
-            page = driver.get(f'https://www.zacks.com/stock/chart/{self.ticker}/fundamental/peg-ratio-ttm')
-            ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
+            page = self.driver.get(f'https://www.zacks.com/stock/chart/{self.ticker}/fundamental/peg-ratio-ttm')
+            ele = self.driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
             peg = 0.0
 
@@ -395,7 +463,7 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
                     end = text.find(')', start)
                     peg = text[start+2:end]
 
-        
+                
             self.logger.debug(f"peg = {peg}")
             self.peg = self._get_float_value(peg)
 
