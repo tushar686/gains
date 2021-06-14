@@ -11,12 +11,16 @@ class Raw():
         print(tree.xpath(x))
 
         //selenium
-options = Options()
-options.add_argument('--headless')
-options.add_argument('--disable-gpu')
-driver = webdriver.Chrome(options=options)
-driver.get(f'https://www.zacks.com/stock/chart/plugfundamental/peg-ratio-ttm')
-ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
+        //phantom
+            driver = webdriver.PhantomJS()
+            driver.get(f'https://www.zacks.com/stock/chart/plugfundamental/peg-ratio-ttm')
+            ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
+        //chrome
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
+            driver = webdriver.Chrome(options=options)
+
 
         import importlib
         importlib.reload(raw)
@@ -40,6 +44,7 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         options.add_argument('--disable-gpu')  # Last I checked this was necessary.
         # self.driver = webdriver.Chrome(options=options)
         self.driver = webdriver.PhantomJS()
+        self.exchanges = ['NASDAQ', 'NYSE']
 
 
         self.yahoo_finance_quote()
@@ -60,14 +65,11 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         # macrotrends
         self.macrotrends_fcf()
 
-        #marketbeat
-        self.marketbeat_emp_roe()
+        # marketbeat
+        self.marketbeat_profile()
         self.marketbeat_inst()
         self.marketbeat_insider()
         self.marketbeat_short()
-
-        #zacks
-        self.get_peg()
 
     def _get_float_value(self, val):
         self.logger.debug(f"get_float i/p: {val}")
@@ -148,6 +150,14 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         page = requests.get(f'https://finance.yahoo.com/quote/{self.ticker}/key-statistics')
         tree = html.fromstring(page.content)
 
+        sma_50d = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[1]/div/div/table/tbody/tr[6]/td[2]/text()')
+        sma_200d = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[1]/div/div/table/tbody/tr[7]/td[2]/text()')
+        self.sma_50d = self._get_float_value(sma_50d)
+        self.sma_200d = self._get_float_value(sma_200d)
+        peg = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[5]/td[2]/text()')
+        self.peg = self._get_float_value(peg)
+        self.logger.debug(f'yf peg {self.peg}')
+
         shares_outstanding = tree.xpath('//*[@data-test="qsp-statistics"]/div[3]/div[2]/div/div[2]/div/div/table/tbody/tr[3]/td[2]/text()')
 
         self.logger.debug(f'shares_outstanding= {shares_outstanding}')
@@ -176,23 +186,6 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
         self.forward_div_rate = forward_div_rate 
         self.shares_outstanding = shares_outstanding
-
-        sma_50d = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[1]/div/div/table/tbody/tr[6]/td[2]/text()')
-        sma_200d = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[1]/div/div/table/tbody/tr[7]/td[2]/text()')
-        self.sma_50d = self._get_float_value(sma_50d)
-        self.sma_200d = self._get_float_value(sma_200d)
-
-        ev = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[2]/td[2]/text()')
-        self.logger.debug(f'ev= {ev}')
-        self.ev = self._get_float_value(ev)          
-        
-        ev_to_sales = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[8]/td[2]/text()')
-        self.logger.debug(f'ev_to_sales= {ev_to_sales}')
-        self.ev_to_sales = self._get_float_value(ev_to_sales)
-
-        ev_to_ebitda = tree.xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[9]/td[2]/text()')
-        self.logger.debug(f'ev_to_sales= {ev_to_ebitda}')
-        self.ev_to_ebitda = self._get_float_value(ev_to_ebitda)        
 
     # get_analyst_estimates_growth_rate_and_avg_forward_eps_growth
     def yahoo_finance_analysis(self):
@@ -316,11 +309,17 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         self.logger.debug(f"price_to_op_cash_flow {price_to_op_cash_flow}")
         self.price_to_op_cash_flow = self._get_float_value(price_to_op_cash_flow)
 
+        ev = tree.xpath('//*[@id="stock-header"]/div/div[1]/div/div[3]/div[8]/text()')
+        self.logger.debug(f'ev= {ev}')
+        self.ev = ev
+
         self.pe = 0.1
         self.cur_ratio = 0
         self.fwd_pe = 0.1
         self.pb = 0.1
         self.ps = 0.1
+        self.ev_to_sales = 0.1
+        self.ev_to_ebitda = 0.1
         self.price_to_op_cash_flow = 0.1
         tbody = tree.xpath('//*[@id="ratios"]/div/table[2]/tbody/tr')
         for tr_idx in range(len(tbody)):
@@ -339,6 +338,12 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
                 self.price_to_op_cash_flow = self._get_float_value(val)
             if key == 'Current Ratio':
                 self.cur_ratio = self._get_float_value(val)
+            if key == 'EV-to-Revenue':
+                self.ev_to_sales = self._get_float_value(val)
+            if key == 'EV-to-EBITDA':
+                self.ev_to_ebitda = self._get_float_value(val)
+
+
                 
         self.dbt_to_equity = 0
         tbody = tree.xpath('//*[@id="financial-strength"]/div/table[2]/tbody/tr')
@@ -403,11 +408,12 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
 
         self.avg_fcf_of_last_10_years = fcf_avg
 
-    def marketbeat_emp_roe(self):
+    def marketbeat_profile(self):
         self.logger.debug(f'__________________________________________')
         emp = 0
         
         page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/')
+
         tree = html.fromstring(page.content)
 
         emp = tree.xpath('//*[@id="cphPrimaryContent_tabCompanyProfile"]/div[2]/div[2]/ul[1]/li[11]/strong/text()')
@@ -415,14 +421,22 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         self.emp = self._get_float_value(emp)
         
         roe = tree.xpath('//*[@id="cphPrimaryContent_tabCompanyProfile"]/div[2]/div[2]/ul[3]/li[4]/strong/text()')
-        self.logger.debug(f"# roe {roe}")
+        self.logger.debug(f"roe {roe}")
         self.roe = self._get_float_value(roe)
+
+        if self.peg == 0 or self.peg == 0.0 or self.peg == 0.1:
+            peg = tree.xpath('//*[@id="cphPrimaryContent_tabCompanyProfile"]/div[2]/div[2]/ul[5]/li[3]/strong/text()')
+            self.logger.debug(f"peg {peg}")
+            self.peg = self._get_float_value(peg)
+
+
 
     def marketbeat_inst(self):
         self.logger.debug(f'__________________________________________')
         institutaion_ownership = 0
         
-        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/institutional-ownership/')
+        page = self._get_page_for_exchanges(f'https://www.marketbeat.com/stocks/exchange/{self.ticker}', 'institutional-ownership/')     
+
         tree = html.fromstring(page.content)
         institutaion_ownership = tree.xpath('//*[@id="cphPrimaryContent_tabInstitutionalOwnership"]/div[1]/text()')
         self.logger.debug(f"institutaion_ownership {institutaion_ownership}")
@@ -432,7 +446,8 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         self.logger.debug(f'__________________________________________')
         insider_ownership = 0
         
-        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/insider-trades/')
+        page = self._get_page_for_exchanges(f'https://www.marketbeat.com/stocks/exchange/{self.ticker}', 'insider-trades/')     
+        
         tree = html.fromstring(page.content)
         insider_ownership = tree.xpath('//*[@id="cphPrimaryContent_tabInsiderTrades"]/div[1]/table/tr[1]/td[2]/text()')
         self.logger.debug(f"insider_ownership {insider_ownership}")
@@ -442,30 +457,24 @@ ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
         self.logger.debug(f'__________________________________________')
         short_days_to_cover = 0
         
-        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/short-interest/')
+        page = self._get_page_for_exchanges(f'https://www.marketbeat.com/stocks/exchange/{self.ticker}', 'short-interest/')     
+        
         tree = html.fromstring(page.content)
         short_days_to_cover = tree.xpath('//*[@id="cphPrimaryContent_tabShortInterest"]/div[1]/div[1]/table/tbody/tr[5]/td/text()')
         self.logger.debug(f"short_days_to_cover {short_days_to_cover}")
         self.short_days_to_cover = self._get_float_value(short_days_to_cover)        
 
+    def _get_page_for_exchanges(self, url, anchor):
+        # nasdaq_url = f'https://www.marketbeat.com/stocks/{exchange}/{self.ticker}'
+        page = None
+        for exchange in self.exchanges:
+            exchanged_url = url.replace('exchange', exchange)
+            page = requests.get(f'{exchanged_url}/{anchor}')
+            if exchanged_url in page.url:
+                return page
+        
+        return page
 
-    def get_peg(self):
-            self.logger.debug(f'__________________________________________')
-            page = self.driver.get(f'https://www.zacks.com/stock/chart/{self.ticker}/fundamental/peg-ratio-ttm')
-            ele = self.driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
-
-            peg = 0.0
-
-            if ele:
-                text = ele.text
-                start = text.rfind('= ')
-                if start and start != -1:
-                    end = text.find(')', start)
-                    peg = text[start+2:end]
-
-                
-            self.logger.debug(f"peg = {peg}")
-            self.peg = self._get_float_value(peg)
 
 
 

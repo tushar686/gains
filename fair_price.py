@@ -117,8 +117,8 @@ def main():
                                         'Growth Nxt Q', 'Growth Cur Q', 'Sales Growth Nxt Yr', 'Sales Growth Cur Yr', 'Sales Growth Nxt Q', 
                                         'Sales Growth Cur Q', 'Rev Growth Past 3 Yr', 'PS', 'EVS', 'EV_TO_EBITDA',
                                         'PE TTM', 'PE FWD', 'PB','PEG', 'P-OP-Cash', 
-                                        'Op Margin', 'Current Ratio', 'Dbt-to-Eqty', 'div rate', 'div yield', 
-                                        'div payout ratio', 'ROE', '#Emp', 'Inst Own', 'Insdier Own', 
+                                        'ROE', 'Op Margin', 'Current Ratio', 'Dbt-to-Eqty', 'div rate',
+                                        'div yield', 'div payout ratio', '#Emp', 'Inst Own', 'Insdier Own', 
                                         'Short Days'
                             ]
                 
@@ -129,8 +129,8 @@ def main():
                                         rd.growth_n_q, rd.growth_c_q, rd.sales_growth_n_y, rd.sales_growth_c_y, rd.sales_growth_n_q, 
                                         rd.sales_growth_c_q, rd.rev_growth_3yr, rd.ps, rd.ev_to_sales, rd.ev_to_ebitda,
                                         rd.pe, rd.fwd_pe, rd.pb, rd.peg, rd.price_to_op_cash_flow, 
-                                        rd.op_margin, rd.cur_ratio, rd.dbt_to_equity, rd.forward_div_rate, rd.div_yield, 
-                                        rd.div_payout_ratio, rd.roe, rd.emp, rd.institutaion_ownership, rd.insider_ownership, 
+                                        rd.roe, rd.op_margin, rd.cur_ratio, rd.dbt_to_equity, rd.forward_div_rate,
+                                        rd.div_yield, rd.div_payout_ratio, rd.emp, rd.institutaion_ownership, rd.insider_ownership, 
                                         rd.short_days_to_cover
                                     ]
                 labels = data_frame['labels']
