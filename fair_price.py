@@ -2,6 +2,7 @@ import logging, time, argparse, csv, json
 import pandas as pd
 import openpyxl as pxl
 from datetime import date
+from selenium.common.exceptions import NoSuchElementException
 
 from raw import Raw
 from intrinsic_value_eps_growth import EPS
@@ -11,35 +12,39 @@ from intrinsic_value_dcf import DCFIntrinsicValue
 
 sector_tickers = {
     #"REITS": [{"in": 1, "sym": "SPG"}, {"in": 1, "sym": "DLR"}, {"in": 1, "sym": "ESS"}, {"in": 1, "sym": "PLD"}, {"in": 1, "sym": "O"}], # removed cci
+    # "Real Estate": [{"in": 0, "sym": "LGIH"}],
     #"Health": [{"in": 1, "sym": "UNH"}, {"in": 1, "sym": "ABMD"}], # removed pg & jnj, alxn
     #"Genomics": [{"in": 1, "sym": "BNGO"}, {"in": 1, "sym": "EDIT"}, {"in": 1, "sym": "CRSP"}, {"in": 1, "sym": "TXG"}, {"in": 1, "sym": "ILMN"}],
     # "Airline": [{"in": 1, "sym": "UAL"}, {"in": 1, "sym": "LUV"}, {"in": 1, "sym": "DAL"}],
     # "Cruise": [{"in": 1, "sym": "NCLH"}, {"in": 1, "sym": "CCL"}],
-    # "Finance": [{"in": 1, "sym": "V"},{"in": 1, "sym": "IBTX"}], #removed MA
+    # "Finance": [{"in": 1, "sym": "V"},{"in": 1, "sym": "IBTX"}, {"in": 1, "sym": "MA"}],
+    # "Oil": [{"in": 0, "sym": "CVX"}, {"in": 1, "sym": "IMO"}, {"in": 0, "sym": "COP"}],
+    # "Retail": [{"in": 1, "sym": "NKE"}, {"in": 1, "sym": "TGT"}],
     
-    "Dividend": [{"in": 1, "sym": "LMT"}, {"in": 1, "sym": "LOW"}, {"in": 1, "sym": "HD"}, {"in": 1, "sym": "TSN"}, {"in": 1, "sym": "CVS"}], # removed pg, jnj and clx
-    "Aircraft": [{"in": 1, "sym": "BA"}, {"in": 0, "sym": "LHX"}, {"in": 1, "sym": "LMT"}, {"in": 0, "sym": "TDG"}, {"in": 0, "sym": "CVU"}],
-    # "Real Estate": [{"in": 0, "sym": "LGIH"}],
-    "Oil": [{"in": 0, "sym": "CVX"}, {"in": 1, "sym": "IMO"}, {"in": 0, "sym": "COP"}],
-    "Eat": [{"in": 1, "sym": "SBUX"}, {"in": 1, "sym": "TTCF"}, {"in": 0, "sym": "MCD"}, {"in": 0, "sym": "PEP"}], # removed cmg, tsn
-    "Bank": [{"in": 1, "sym": "PNC"}, {"in": 0, "sym": "USB"}, {"in": 0, "sym": "JPM"}, {"in": 1, "sym": "DFS"}],
+    "Dividend": [{"in": 1, "sym": "LMT"}, {"in": 1, "sym": "BA"}, {"in": 1, "sym": "LHX"}, {"in": 1, "sym": "LOW"}, 
+                 {"in": 1, "sym": "HD"}, {"in": 1, "sym": "CVS"}], # removed pg, jnj and clx
+    "Eat": [{"in": 1, "sym": "SBUX"}, {"in": 1, "sym": "MCD"}, {"in": 1, "sym": "TTCF"}, {"in": 1, "sym": "BYND"}],
+    "Bank": [{"in": 1, "sym": "PNC"}, {"in": 1, "sym": "DFS"}, {"in": 1, "sym": "USB"}],
+    "Energy": [{"in": 1, "sym": "ENPH"}, {"in": 1, "sym": "PLUG"}],
+    "Semiconductor": [{"in": 1, "sym": "QCOM"}, {"in": 1, "sym": "nvda"}, {"in": 1, "sym": "AMD"}, {"in": 1, "sym": "INTC"}],
     "Tech": [{"in": 1, "sym": "GOOG"}, {"in": 1, "sym": "MSFT"}, {"in": 1, "sym": "AAPL"}],
-    "Retail": [{"in": 1, "sym": "NKE"}], # removed TGT, NKE
-    "Solar": [{"in": 0, "sym": "FSLR"}, {"in": 0, "sym": "BE"}, {"in": 1, "sym": "ENPH"}, {"in": 1, "sym": "PLUG"}],
-    "Semiconductor": [{"in": 1, "sym": "QCOM"}, {"in": 1, "sym": "nvda"}], # removed nvdia
-    "Med Growth": [{"in": 1, "sym": "TSLA"}, {"in": 1, "sym": "AMZN"}, {"in": 1, "sym": "AYX"}, 
+    "Med Growth": [{"in": 1, "sym": "TSLA"}, {"in": 1, "sym": "AMZN"}, 
                    {"in": 1, "sym": "SPLK"}, 
-                   {"in": 0, "sym": "NOW"}, {"in": 0, "sym": "PAYC"},  # removed wday
-                   {"in": 1, "sym": "FB"}, {"in": 1, "sym": "CRM"}, {"in": 1, "sym": "PYPL"}],                     
-    "High Growth": [{"in": 1, "sym": "SQ"}, {"in": 1, "sym": "UBER"}, {"in": 0, "sym": "SHOP"}, # more stable
-                    {"in": 1, "sym": "OKTA"}, # established growth
+                   {"in": 0, "sym": "NOW"},
+                   {"in": 1, "sym": "FB"}, {"in": 1, "sym": "CRM"}, {"in": 1, "sym": "PYPL"},
+                   ],                     
+    "High Growth": [{"in": 1, "sym": "UBER"}, {"in": 0, "sym": "SHOP"}, {"in": 1, "sym": "TTD"}, 
                     {"in": 1, "sym": "CRWD"}, {"in": 1, "sym": "ABNB"}, {"in": 1, "sym": "SNOW"}, 
-                    {"in": 1, "sym": "PINS"}, {"in": 1, "sym": "SNAP"}, 
-                    {"in": 1, "sym": "TTD"}, {"in": 1, "sym": "FSLY"}, {"in": 1, "sym": "NET"}], #CSLX, ETSY, FSLY, NET Organic growth
-    "Bet": [{"in": 1, "sym": "BB"}, {"in": 1, "sym": "NOK"}, {"in": 1, "sym": "KBNT"}, {"in": 1, "sym": "QS"}, {"in": 1, "sym": "PLUG"},  # comm/adv
-            {"in": 1, "sym": "BNGO"}, {"in": 0, "sym": "TXG"}, {"in": 1, "sym": "VXRT"}, #genomics
-            {"in": 0, "sym": "VRM"}, {"in": 0, "sym": "SFT"} #vehicle not interested
+                    {"in": 1, "sym": "SQ"}, {"in": 1, "sym": "UPST"}, {"in": 1, "sym": "GLBE", 'p': '30'}, {"in": 1, "sym": "SE"}, {"in": 1, "sym": "TDOC"}, 
+                    {"in": 1, "sym": "NET"}, {"in": 1, "sym": "OKTA"}, {"in": 1, "sym": "ROKU"}, 
+                    {"in": 1, "sym": "SNAP"}, {"in": 1, "sym": "PINS"}, {"in": 1, "sym": "FSLY"}, {"in": 1, "sym": "CHGG"}],
+    "Bet": [{"in": 1, "sym": "KBNT"}, {"in": 1, "sym": "QS"}, {"in": 1, "sym": "PLUG"}, 
+            {"in": 1, "sym": "BNGO"}, {"in": 0, "sym": "TXG"}, {"in": 1, "sym": "VXRT"},
+            {"in": 1, "sym": "BLNK"}, {"in": 1, "sym": "FVRR", 'p': '100'}, {"in": 1, "sym": "FRPT", 'p': '70'},
+            {"in": 1, "sym": "PTON", 'p': '25'}, {"in": 1, "sym": "DOCU", 'p': '10'}, {"in": 1, "sym": "LMND"}, {"in": 1, "sym": "DASH"}
             ],
+    "Sell": [{"in": 1, "sym": "AYX"}, {"in": 1, "sym": "ARKG"}],
+
 } 
 
 
@@ -83,61 +88,64 @@ def main():
         data_frame[sector] = ''
         for tickerDict in tickers:
             ticker = tickerDict.get('sym')
-            if override_in == 'Yes' or tickerDict.get('in') == 1:
-                time.sleep(1)
-                logger.warning("")
-                logger.warning(f"************************ {ticker} ************************")
-                rd = Raw(ticker, logger)
+            try:
+                if override_in == 'Yes' or tickerDict.get('in') == 1:
+                    time.sleep(4)
+                    logger.warning("")
+                    logger.warning(f"************************ {ticker} ************************")
+                    rd = Raw(ticker, logger)
 
-                fair_eps_by_eps_growth = EPS(eps_growth_rate=rd.growth_next_5_yrs,
-                                             eps_ttm=rd.eps_ttm, avg_pe_ratio=rd.avg_pe_ratio, logger=logger)
-                fair_price_by_eps = fair_eps_by_eps_growth.calculate(no_of_years=10, rate_of_return=15)
-                logger.warning(f"fair_price_by_eps= {fair_price_by_eps}")
+                    fair_eps_by_eps_growth = EPS(eps_growth_rate=rd.growth_next_5_yrs,
+                                                eps_ttm=rd.eps_ttm, avg_pe_ratio=rd.avg_pe_ratio, logger=logger)
+                    fair_price_by_eps = fair_eps_by_eps_growth.calculate(no_of_years=10, rate_of_return=15)
+                    logger.warning(f"fair_price_by_eps= {fair_price_by_eps}")
 
-                fair_price_by_div = Div(div_rate=rd.forward_div_rate, div_growth_rate=rd.div_avg_growth,
-                                        current_price=rd.current_price, logger=logger)
-                fair_price_by_div_growth = fair_price_by_div.calculate(no_of_years=10, rate_of_return=20)
-                logger.warning(f"fair_price_by_div_growth= {fair_price_by_div_growth}")
-                fair_price_by_div_formula = fair_price_by_div.calculate_by_formula(rate_of_return=15)
-                logger.warning(f"fair_price_by_div_formula= {fair_price_by_div_formula}")
+                    fair_price_by_div = Div(div_rate=rd.forward_div_rate, div_growth_rate=rd.div_avg_growth,
+                                            current_price=rd.current_price, logger=logger)
+                    fair_price_by_div_growth = fair_price_by_div.calculate(no_of_years=10, rate_of_return=20)
+                    logger.warning(f"fair_price_by_div_growth= {fair_price_by_div_growth}")
+                    fair_price_by_div_formula = fair_price_by_div.calculate_by_formula(rate_of_return=15)
+                    logger.warning(f"fair_price_by_div_formula= {fair_price_by_div_formula}")
 
-                buffet_book_intrinsic_value = BuffetBookIntrinsicValue(rd.forward_div_rate, rd.book_value, rd.avg_book_value, rd.avg_forward_eps, 10, logger)
-                bb_intrinsic_value_by_treasury_rate = buffet_book_intrinsic_value.calculate_intrinsic_value(rd.latest_treasury_rate)
-                logger.warning(f"bb_intrinsic_value_by_treasury_rate= {bb_intrinsic_value_by_treasury_rate}")
-                bb_intrinsic_value_by_exp_rate = buffet_book_intrinsic_value.calculate_intrinsic_value(10)
-                logger.warning(f"bb_intrinsic_value_by_exp_rate= {bb_intrinsic_value_by_exp_rate}")
-                dcf = DCFIntrinsicValue(rd.avg_fcf_of_last_10_years, rd.avg_op_income, rd.shares_outstanding, logger)
-                intrinsic_value_by_dcf = dcf.calculate_intrinsic_value(10)
-                logger.warning(f"intrinsic_value_by_dcf= {intrinsic_value_by_dcf}")
+                    buffet_book_intrinsic_value = BuffetBookIntrinsicValue(rd.forward_div_rate, rd.book_value, rd.avg_book_value, rd.avg_forward_eps, 10, logger)
+                    bb_intrinsic_value_by_treasury_rate = buffet_book_intrinsic_value.calculate_intrinsic_value(rd.latest_treasury_rate)
+                    logger.warning(f"bb_intrinsic_value_by_treasury_rate= {bb_intrinsic_value_by_treasury_rate}")
+                    bb_intrinsic_value_by_exp_rate = buffet_book_intrinsic_value.calculate_intrinsic_value(10)
+                    logger.warning(f"bb_intrinsic_value_by_exp_rate= {bb_intrinsic_value_by_exp_rate}")
+                    dcf = DCFIntrinsicValue(rd.avg_fcf_of_last_10_years, rd.avg_op_income, rd.shares_outstanding, logger)
+                    intrinsic_value_by_dcf = dcf.calculate_intrinsic_value(10)
+                    logger.warning(f"intrinsic_value_by_dcf= {intrinsic_value_by_dcf}")
 
-                data_frame['labels'] = ['EPS 15% Rate', 'Div Growth 20% Rate', 'Div Formula 15% Rate', 'By DCF', 'BB TR Current Rate',
-                                        'BB 10% Rate', '15 PE', '1.5 PB', 'TR', 'Mkt Cap', 
-                                        'EV', 'Current Price', 'SMA 50D', 'SMA 200D', 'Below 52wk H', 
-                                        'Above 52wk L', 'Growth Nxt 5 Yr', 'Growth Past 5 Yr', 'Growth Nxt Yr', 'Growth Cur Yr', 
-                                        'Growth Nxt Q', 'Growth Cur Q', 'Sales Growth Nxt Yr', 'Sales Growth Cur Yr', 'Sales Growth Nxt Q', 
-                                        'Sales Growth Cur Q', 'Rev Growth Past 3 Yr', 'PS', 'EVS', 'EV_TO_EBITDA',
-                                        'PE TTM', 'PE FWD', 'PB','PEG', 'P-OP-Cash', 
-                                        'ROE', 'Op Margin', 'Current Ratio', 'Dbt-to-Eqty', 'div rate',
-                                        'div yield', 'div payout ratio', '#Emp', 'Inst Own', 'Insdier Own', 
-                                        'Short Days'
-                            ]
-                
-                data_frame[ticker] = [  fair_price_by_eps, fair_price_by_div_growth, fair_price_by_div_formula, intrinsic_value_by_dcf, bb_intrinsic_value_by_treasury_rate, 
-                                        bb_intrinsic_value_by_exp_rate, round(15 * rd.current_price/rd.pe, 2), round(1.5 * rd.current_price/rd.pb, 2), rd.latest_treasury_rate, rd.mkt_cap,
-                                        rd.ev, rd.current_price, rd.sma_50d, rd.sma_200d, rd.h52wk_drop, 
-                                        rd.l52wk_up, rd.growth_next_5_yrs, rd.growth_p_5y, rd.growth_n_y, rd.growth_c_y, 
-                                        rd.growth_n_q, rd.growth_c_q, rd.sales_growth_n_y, rd.sales_growth_c_y, rd.sales_growth_n_q, 
-                                        rd.sales_growth_c_q, rd.rev_growth_3yr, rd.ps, rd.ev_to_sales, rd.ev_to_ebitda,
-                                        rd.pe, rd.fwd_pe, rd.pb, rd.peg, rd.price_to_op_cash_flow, 
-                                        rd.roe, rd.op_margin, rd.cur_ratio, rd.dbt_to_equity, rd.forward_div_rate,
-                                        rd.div_yield, rd.div_payout_ratio, rd.emp, rd.institutaion_ownership, rd.insider_ownership, 
-                                        rd.short_days_to_cover
-                                    ]
-                labels = data_frame['labels']
-                ticker_values = data_frame[ticker]
-                for i in range(len(labels)):
-                    logger.warning(f'{labels[i]} : {ticker_values[i]}')
-        
+                    data_frame['labels'] = ['EPS 15% Rate', 'Div Growth 20% Rate', 'Div Formula 15% Rate', 'By DCF', 'BB TR Current Rate',
+                                            'BB 10% Rate', '15 PE', '1.5 PB', 'TR', 'Mkt Cap', 
+                                            'EV', 'Current Price', 'SMA 50D', 'SMA 200D', 'Below 52wk H', 
+                                            'Above 52wk L', 'Growth Nxt 5 Yr', 'Growth Past 5 Yr', 'Growth Nxt Yr', 'Growth Cur Yr', 
+                                            'Growth Nxt Q', 'Growth Cur Q', 'Sales Growth Nxt Yr', 'Sales Growth Cur Yr', 'Sales Growth Nxt Q', 
+                                            'Sales Growth Cur Q', 'Rev Growth Past 3 Yr', 'PS', 'EVS', 'EV_TO_EBITDA',
+                                            'PE TTM', 'PE FWD', 'PB','PEG', 'P-OP-Cash', 
+                                            'ROE', 'Op Margin', 'Current Ratio', 'Dbt-to-Eqty', 'div rate',
+                                            'div yield', 'div payout ratio', '#Emp', 'Inst Own', 'Insdier Own', 
+                                            'Short Days'
+                                ]
+                    
+                    data_frame[ticker] = [  fair_price_by_eps, fair_price_by_div_growth, fair_price_by_div_formula, intrinsic_value_by_dcf, bb_intrinsic_value_by_treasury_rate, 
+                                            bb_intrinsic_value_by_exp_rate, round(15 * rd.current_price/rd.pe, 2), round(1.5 * rd.current_price/rd.pb, 2), rd.latest_treasury_rate, rd.mkt_cap,
+                                            rd.ev, rd.current_price, rd.sma_50d, rd.sma_200d, rd.h52wk_drop, 
+                                            rd.l52wk_up, rd.growth_next_5_yrs, rd.growth_p_5y, rd.growth_n_y, rd.growth_c_y, 
+                                            rd.growth_n_q, rd.growth_c_q, rd.sales_growth_n_y, rd.sales_growth_c_y, rd.sales_growth_n_q, 
+                                            rd.sales_growth_c_q, rd.rev_growth_3yr, rd.ps, rd.ev_to_sales, rd.ev_to_ebitda,
+                                            rd.pe, rd.fwd_pe, rd.pb, rd.peg, rd.price_to_op_cash_flow, 
+                                            rd.roe, rd.op_margin, rd.cur_ratio, rd.dbt_to_equity, rd.forward_div_rate,
+                                            rd.div_yield, rd.div_payout_ratio, rd.emp, rd.institutaion_ownership, rd.insider_ownership, 
+                                            rd.short_days_to_cover
+                                        ]
+                    labels = data_frame['labels']
+                    ticker_values = data_frame[ticker]
+                    for i in range(len(labels)):
+                        logger.warning(f'{labels[i]} : {ticker_values[i]}')
+            except NoSuchElementException as driverError:
+                logger.warning("error :::::::::", driverError)
+
     if write_to_excel == 'True':
         path = './xlsx/fair_prices.xlsx'
         workbook = pxl.load_workbook(path)
