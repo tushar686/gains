@@ -1,25 +1,32 @@
 from lxml import html
+
 import requests
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+
+import logging
+
 
 class Raw():
     """
         //requests
         page = requests.get('')
         tree = html.fromstring(page.content)
-        print(tree.xpath(x))
+        print(tree.xpath(''))
 
-        //selenium
-        //phantom
+        //with phantomJS
             driver = webdriver.PhantomJS()
             driver.get(f'https://www.zacks.com/stock/chart/plugfundamental/peg-ratio-ttm')
-            ele = driver.find_element_by_xpath('//*[@id="stock_comp_desc"]/p')
-        //chrome
+            print(driver.find_element_by_xpath(''))
+            print(driver.find_element_by_class_name(''))
+        //with chrome
             options = Options()
             options.add_argument('--headless')
             options.add_argument('--disable-gpu')
             driver = webdriver.Chrome(options=options)
+        //screenshot
+            driver.save_screenshot("screenshot.png")    
 
 
         import importlib
@@ -37,13 +44,15 @@ class Raw():
     def __init__(self, ticker, logger):
         self.ticker = ticker
         self.logger = logger
-        # take screenshot of web page
-        # driver = webdriver.PhantomJS()
-        # driver.get(f'https://finviz.com/quote.ashx?t={self.ticker}')
-        # driver.save_screenshot("screenshot.png")
-        
-        self.yahoo_finance_quote()
-        self.yahoo_finance_key_statistics()
+        # disable requests logging
+        logging.getLogger("requests").setLevel(logging.ERROR)
+        logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+        logging.getLogger('selenium').setLevel(logging.CRITICAL)
+
+        self.current_price = self.pb = 100
+
+        self.finviz_quote()
+
         self.yahoo_finance_analysis()
 
         self.gurufocus_term_pettm()
@@ -52,7 +61,6 @@ class Raw():
         # todo:re-understand what these two things are
         # self.ret = round(((1 / self.pe) * 100), 2)
         # self.margin = round(((1 / self.pb) * 100), 2)
-        self.current_price = self.pb = 100
         self.book_value = round(self.current_price/self.pb, 2)
 
         # treasury.gov
@@ -60,13 +68,6 @@ class Raw():
 
         # macrotrends
         self.macrotrends_fcf()
-
-        # # marketbeat
-        self.exchanges = ['NASDAQ', 'NYSE']
-        self.marketbeat_profile()
-        self.marketbeat_inst()
-        self.marketbeat_insider()
-        self.marketbeat_short()
 
     def _get_float_value(self, key, val):
         self.logger.debug(f'{key} = {val}')
@@ -91,75 +92,53 @@ class Raw():
             self.logger.debug(e)
             return 0.0
 
-    # h52wk_drop, l52wk_up, eps_ttm
-    def yahoo_finance_quote(self):
-        self.logger.debug(f'__________________________________________')
-        page = requests.get(f'https://finance.yahoo.com/quote/{self.ticker}')
-        tree = html.fromstring(page.content)
-  
-        current_price = tree.xpath('//*[@id="quote-header-info"]/div[3]/div[1]/div/span[1]/text()')
-        current_price = self._get_float_value('current_price', current_price)
-        self.current_price = current_price
-        h52wk_drop = 1.0
-        l52wk_up = 1.0
-        eps_ttm = 1.0
-        
-        h_l_list = [1, 1]
-        h_l = tree.xpath('//*[@id="quote-summary"]/div[1]/table/tbody/tr[6]/td[2]/text()')
-        self.logger.debug(f'52_wk_h_l_str= {h_l}')
-        if not h_l:
-            h_l = ['N', 'N']
-        self.logger.debug(f'52_wk_h_l_str= {h_l[0].split(" ")}')
-        h_l_list = h_l[0].split(" ")
-
-        if 'N' not in h_l_list[0] and 'N' not in h_l_list[2]:
-            l = self._get_float_value('l', h_l_list[0])
-            h = self._get_float_value('h', h_l_list[2])
-
-            self.logger.debug(f'52_wk_h= {h}')
-            self.logger.debug(f'52_wk_l= {l}')
-            if h != 0:
-                h52wk_drop = (100 - (current_price / h * 100))
-                self.logger.debug(f'h52wk drop = {h52wk_drop}')
-            if l != 0:
-                l52wk_up = ((current_price / l * 100) - 100)    
-                self.logger.debug(f'l52wk up = {l52wk_up}')
-        self.h52wk_drop = round(h52wk_drop, 2)
-        self.l52wk_up = round(l52wk_up, 2)
-
-        eps_ttm = tree.xpath('//*[@id="quote-summary"]/div[2]/table/tbody/tr[4]/td[2]/span/text()')
-        self.logger.debug(f"eps ttm {eps_ttm}")
-        if not eps_ttm or 'N/A' in eps_ttm[0]:
-            eps_ttm = 0
-        else:
-            eps_ttm = self._get_float_value('eps_ttm', eps_ttm)
-        self.logger.debug(f'eps_ttm up = {eps_ttm}')
-        self.eps_ttm = eps_ttm
-
-        mkt_cap = tree.xpath('//*[@id="quote-summary"]/div[2]/table/tbody/tr[1]/td[2]/span/text()')
-        self.logger.debug(f"mkt cap {mkt_cap}")
-        self.mkt_cap = mkt_cap
-
-
-    def yahoo_finance_key_statistics(self):
+    # h52wk_drop, l52wk_up, eps_ttm, peg, mcap, income, rsi, shares outstanding
+    def finviz_quote(self):
         self.logger.debug(f'__________________________________________')
         driver = webdriver.PhantomJS()
-        driver.get(f'https://finance.yahoo.com/quote/{self.ticker}/key-statistics')
-    
-        sma_50d = driver.find_element_by_xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[1]/div/div/table/tbody/tr[6]/td[2]').text
-        sma_200d = driver.find_element_by_xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[1]/div/div/table/tbody/tr[7]/td[2]').text
-        self.sma_50d = self._get_float_value('sma_50d', sma_50d)
-        self.sma_200d = self._get_float_value('sma_200d', sma_200d)
-        peg = driver.find_element_by_xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[1]/div[2]/div/div[1]/div[1]/table/tbody/tr[5]/td[2]').text
-        self.peg = self._get_float_value('peg', peg)
+        driver.get(f'https://finviz.com/quote.ashx?t={self.ticker}')
+        snapshot_table_ele = driver.find_element_by_class_name('snapshot-table2')
+        
+        self.current_price = self._get_float_value('current_price', snapshot_table_ele.find_element_by_xpath('tbody/tr[11]/td[12]/b').text)
+        self.eps_ttm = self._get_float_value('eps_ttm', snapshot_table_ele.find_element_by_xpath('tbody/tr[1]/td[6]/b').text)
+        self.peg = self._get_float_value('peg', snapshot_table_ele.find_element_by_xpath('tbody/tr[3]/td[4]/b').text)
+        self.income = snapshot_table_ele.find_element_by_xpath('tbody/tr[3]/td[2]/b').text
+        
+        self.mkt_cap = snapshot_table_ele.find_element_by_xpath('tbody/tr[2]/td[2]/b').text
+        self.rsi = snapshot_table_ele.find_element_by_xpath('tbody/tr[9]/td[10]/b').text
+        self.perf_yr = snapshot_table_ele.find_element_by_xpath('tbody/tr[5]/td[12]/b').text
+        self.perf_ytd = snapshot_table_ele.find_element_by_xpath('tbody/tr[6]/td[12]/b').text
+        self.logger.debug(f'perf_yr= {self.perf_yr}, perf_ytd = {self.perf_ytd}, rsi={self.rsi}, mkt_cap={self.mkt_cap}')
 
-        shares_outstanding = driver.find_element_by_xpath('//*[@data-test="qsp-statistics"]/div[3]/div[2]/div/div[2]/div/div/table/tbody/tr[3]/td[2]')
+        self.gross_margin = snapshot_table_ele.find_element_by_xpath('tbody/tr[8]/td[8]/b').text
+        self.op_margin = snapshot_table_ele.find_element_by_xpath('tbody/tr[9]/td[8]/b').text
+        self.profit_margin = snapshot_table_ele.find_element_by_xpath('tbody/tr[10]/td[8]/b').text
+        self.emp = snapshot_table_ele.find_element_by_xpath('tbody/tr[9]/td[2]/b').text
+        self.short_days_to_cover = snapshot_table_ele.find_element_by_xpath('tbody/tr[4]/td[10]/b').text
+        self.logger.debug(f'gross_margin= {self.gross_margin}, op_margin = {self.op_margin}, profit_margin={self.profit_margin}, emp={self.emp}, short_days_to_cover={self.short_days_to_cover}')
+
+        self.institutaion_ownership = snapshot_table_ele.find_element_by_xpath('tbody/tr[1]/td[8]/b').text
+        self.institutaion_trans = snapshot_table_ele.find_element_by_xpath('tbody/tr[2]/td[8]/b').text
+        self.insider_ownership = snapshot_table_ele.find_element_by_xpath('tbody/tr[3]/td[8]/b').text
+        self.insider_trans = snapshot_table_ele.find_element_by_xpath('tbody/tr[4]/td[8]/b').text
+        self.roe = snapshot_table_ele.find_element_by_xpath('tbody/tr[6]/td[8]/b').text
+        self.logger.debug(f'institutaion_ownership= {self.institutaion_ownership}, institutaion_trans = {self.institutaion_trans}, insider_ownership={self.insider_ownership}, insider_trans={self.insider_trans}, roe={self.roe}')
 
 
+        self.range_52wk = snapshot_table_ele.find_element_by_xpath('tbody/tr[6]/td[10]/b').text
+        self.drop_from_52wkh = snapshot_table_ele.find_element_by_xpath('tbody/tr[7]/td[10]/b').text
+        self.up_from_52wkl = snapshot_table_ele.find_element_by_xpath('tbody/tr[8]/td[10]/b').text
+        self.logger.debug(f'52wk range= {self.range_52wk} drop from high = {self.drop_from_52wkh}, up from low={self.up_from_52wkl}')
+
+        self.forward_div_rate = 0
+        forward_div_rate = snapshot_table_ele.find_element_by_xpath('tbody/tr[7]/td[2]/b').text
+        if forward_div_rate is not '-':
+            self.forward_div_rate = self._get_float_value('forward_div_rate', forward_div_rate)        
+
+        shares_outstanding = snapshot_table_ele.find_element_by_xpath('tbody/tr[1]/td[10]/b').text
+        self.logger.debug(f'shares_outstanding= {shares_outstanding}')
         self.shares_outstanding = 1
         if shares_outstanding:
-            shares_outstanding = shares_outstanding.text
-            shares_outstanding = shares_outstanding[0]
             if shares_outstanding.find('M') > 0:
                 shares_outstanding = shares_outstanding.replace('M', '')
             if shares_outstanding.find('B') > 0:
@@ -167,12 +146,7 @@ class Raw():
                 shares_outstanding = self._get_float_value('shares_outstanding', shares_outstanding) * 10.00
                 shares_outstanding = self._get_float_value('shares_outstanding', shares_outstanding)                
                 self.shares_outstanding = shares_outstanding
-
-        self.forward_div_rate = 0
-        forward_div_rate = driver.find_element_by_xpath('//*[@id="Col1-0-KeyStatistics-Proxy"]/section/div[3]/div[2]/div/div[3]/div/div/table/tbody/tr[1]/td[2]')
-        if forward_div_rate:
-            forward_div_rate = self._get_float_value('forward_div_rate', forward_div_rate.text)
-            self.forward_div_rate = forward_div_rate 
+            self.logger.debug(f'shares_outstanding= {shares_outstanding}')    
         
 
     # get_analyst_estimates_growth_rate_and_avg_forward_eps_growth
@@ -286,7 +260,6 @@ class Raw():
     # div_3_yr_avg_growth_rate, price-to-op
     def gurufocus_stock_summary(self):
         self.logger.debug(f'__________________________________________')
-        self.logger.debug(f'__________________________________________')
         page = requests.get(f'https://www.gurufocus.com/stock/{self.ticker}/summary')
         tree = html.fromstring(page.content)
 
@@ -342,15 +315,13 @@ class Raw():
             if key == 'Debt-to-Equity':
                 self.dbt_to_equity = self._get_float_value('dbt_to_equity', val)
         
-        self.op_margin = 0
+    
         self.rev_growth_3yr = 0
         tbody = tree.xpath('//*[@id="profitability"]/div/table[2]/tbody/tr')
         for tr_idx in range(len(tbody)):
             key = tree.xpath(f'//*[@id="profitability"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[1]/a/text()')
             val = tree.xpath(f'//*[@id="profitability"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[2]/span[2]/text()')
             key = key[0].replace('\n', '')
-            if key == 'Operating Margin %':
-                self.op_margin = self._get_float_value('op_margin', val)                
             if key == '3-Year Revenue Growth Rate':
                 self.rev_growth_3yr = self._get_float_value('rev_growth_3yr', val)
 
@@ -375,75 +346,26 @@ class Raw():
         self.latest_treasury_rate = self._get_float_value('latest_treasury_rate', latest_rate)
 
     def macrotrends_fcf(self):
-        self.logger.debug(f'__________________________________________')
-        fcf_sum = 0
+        # self.logger.debug(f'__________________________________________')
+        # fcf_sum = 0
         
-        try:
-            page = requests.get(f'https://www.macrotrends.net/stocks/charts/{self.ticker}/microsoft/free-cash-flow')
-            tree = html.fromstring(page.content)
-        except TooManyRedirects:
-            pass
+        # try:
+        #     page = requests.get(f'https://www.macrotrends.net/stocks/charts/{self.ticker}/microsoft/free-cash-flow')
+        #     tree = html.fromstring(page.content)
+        # except TooManyRedirects:
+        #     pass
 
-        for i in range(1, 11):
-            fcf = tree.xpath(f'//*[@id="style-1"]/div[1]/table/tbody/tr[{i}]/td[2]/text()')
-            fcf_val = self._get_float_value('fcf_val', fcf)
-            fcf_sum = fcf_sum + fcf_val
+        # for i in range(1, 11):
+        #     fcf = tree.xpath(f'//*[@id="style-1"]/div[1]/table/tbody/tr[{i}]/td[2]/text()')
+        #     fcf_val = self._get_float_value('fcf_val', fcf)
+        #     fcf_sum = fcf_sum + fcf_val
         
-        fcf_avg = round(fcf_sum / 10, 2)
-        self.logger.debug(f"fcf_avg {fcf_avg}")
+        # fcf_avg = round(fcf_sum / 10, 2)
+        # self.logger.debug(f"fcf_avg {fcf_avg}")
 
-        self.avg_fcf_of_last_10_years = fcf_avg
+        # find other source to calculate........
 
-    def marketbeat_profile(self):
-        self.logger.debug(f'__________________________________________')
-        emp = 0
-        
-        page = requests.get(f'https://www.marketbeat.com/stocks/NASDAQ/{self.ticker}/')
-
-        tree = html.fromstring(page.content)
-
-        emp = tree.xpath('//*[@id="shareableArticle"]/div[2]/div/div[2]/div[2]/ul[1]/li[11]/strong/text()')
-        self.emp = self._get_float_value('emp', emp)
-        
-        roe = tree.xpath('//*[@id="shareableArticle"]/div[2]/div/div[2]/div[2]/ul[3]/li[4]/strong/text()')
-        self.roe = self._get_float_value('roe', roe)
-
-        if self.peg == 0 or self.peg == 0.0 or self.peg == 0.1:
-            peg = tree.xpath('//*[@id="shareableArticle"]/div[2]/div[2]/ul[5]/li[3]/strong/text()')
-            self.peg = self._get_float_value('peg', peg)
-
-
-
-    def marketbeat_inst(self):
-        self.logger.debug(f'__________________________________________')
-        institutaion_ownership = 0
-        
-        page = self._get_page_for_exchanges(f'https://www.marketbeat.com/stocks/exchange/{self.ticker}', 'institutional-ownership/')     
-
-        tree = html.fromstring(page.content)
-        
-        institutaion_ownership = tree.xpath('//*[@id="shareableArticle"]/div[2]/div/div[1]/text()')
-        self.institutaion_ownership = self._get_float_value('institutaion_ownership', institutaion_ownership)
-
-    def marketbeat_insider(self):
-        self.logger.debug(f'__________________________________________')
-        insider_ownership = 0
-        
-        page = self._get_page_for_exchanges(f'https://www.marketbeat.com/stocks/exchange/{self.ticker}', 'insider-trades/')     
-        
-        tree = html.fromstring(page.content)
-        insider_ownership = tree.xpath('//*[@id="shareableArticle"]/div[2]/div/div[1]/table/tr[1]/td[2]/text()')
-        self.insider_ownership = self._get_float_value('insider_ownership', insider_ownership)        
-
-    def marketbeat_short(self):
-        self.logger.debug(f'__________________________________________')
-        short_days_to_cover = 0
-        
-        page = self._get_page_for_exchanges(f'https://www.marketbeat.com/stocks/exchange/{self.ticker}', 'short-interest/')     
-        
-        tree = html.fromstring(page.content)
-        short_days_to_cover = tree.xpath('//*[@id="shareableArticle"]/div[2]/div/div[1]/div[1]/table/tbody/tr[5]/td/text()')
-        self.short_days_to_cover = self._get_float_value('short_days_to_cover', short_days_to_cover)        
+        self.avg_fcf_of_last_10_years = 100
 
     def _get_page_for_exchanges(self, url, anchor):
         # nasdaq_url = f'https://www.marketbeat.com/stocks/{exchange}/{self.ticker}'
