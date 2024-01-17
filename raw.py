@@ -1,5 +1,4 @@
 from lxml import html
-
 import requests
 
 from selenium import webdriver
@@ -61,13 +60,11 @@ class Raw():
         # todo:re-understand what these two things are
         # self.ret = round(((1 / self.pe) * 100), 2)
         # self.margin = round(((1 / self.pb) * 100), 2)
+        self.pb = 100 if self.pb == 0 else self.pb
         self.book_value = round(self.current_price/self.pb, 2)
 
         # treasury.gov
         self.get_latest_treasury_rate()
-
-        # macrotrends
-        self.macrotrends_fcf()
 
     def _get_float_value(self, key, val):
         self.logger.debug(f'{key} = {val}')
@@ -135,6 +132,13 @@ class Raw():
         if forward_div_rate is not '-':
             self.forward_div_rate = self._get_float_value('forward_div_rate', forward_div_rate)        
 
+        self.pe = self._get_float_value('pe ttm', snapshot_table_ele.find_element_by_xpath('tbody/tr[1]/td[4]/b').text)
+        self.fwd_pe = self._get_float_value('pe fwd', snapshot_table_ele.find_element_by_xpath('tbody/tr[2]/td[4]/b').text)
+        self.ps = self._get_float_value('ps', snapshot_table_ele.find_element_by_xpath('tbody/tr[4]/td[4]/b').text)
+        self.pb = self._get_float_value('pb', snapshot_table_ele.find_element_by_xpath('tbody/tr[5]/td[4]/b').text)
+        self.price_to_free_cash_flow = self._get_float_value('p-fcf', snapshot_table_ele.find_element_by_xpath('tbody/tr[7]/td[4]/b').text)
+        self.cur_ratio = self._get_float_value('p-fcf', snapshot_table_ele.find_element_by_xpath('tbody/tr[9]/td[4]/b').text)
+
         shares_outstanding = snapshot_table_ele.find_element_by_xpath('tbody/tr[1]/td[10]/b').text
         self.logger.debug(f'shares_outstanding= {shares_outstanding}')
         self.shares_outstanding = 1
@@ -155,11 +159,10 @@ class Raw():
         driver = webdriver.PhantomJS()
         driver.get(f'https://finance.yahoo.com/quote/{self.ticker}/analysis?p={self.ticker}')
 
-        self.sales_growth_c_q = self._get_float_value('sales_growth_c_q', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[2]/span').text)
-                                                                   
-        self.sales_growth_n_q = self._get_float_value('sales_growth_n_q', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[3]/span').text)
-        self.sales_growth_c_y = self._get_float_value('sales_growth_c_y', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[4]/span').text)
-        self.sales_growth_n_y = self._get_float_value('sales_growth_n_y', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[5]/span').text)
+        self.sales_growth_c_q = self._get_float_value('sales_growth_c_q', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[2]').text)
+        self.sales_growth_n_q = self._get_float_value('sales_growth_n_q', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[3]').text)
+        self.sales_growth_c_y = self._get_float_value('sales_growth_c_y', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[4]').text)
+        self.sales_growth_n_y = self._get_float_value('sales_growth_n_y', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[2]/tbody/tr[6]/td[5]').text)
         
         self.growth_c_q = self._get_float_value('growth_c_q', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[1]/td[2]').text)
         self.growth_n_q = self._get_float_value('growth_n_q', driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[6]/tbody/tr[2]/td[2]').text)
@@ -177,7 +180,7 @@ class Raw():
             self.growth_next_5_yrs = self._get_float_value('growth_next_5_yrs', growth_next_5_yrs.text)
 
         # "earningsEstimate":{"avg":{"raw":9.81
-        avg_forward_eps = driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[1]/tbody/tr[2]/td[5]/span')
+        avg_forward_eps = driver.find_element_by_xpath('//*[@data-test="qsp-analyst"]/table[1]/tbody/tr[2]/td[5]')
         self.avg_forward_eps = self._get_float_value('avg_forward_eps', avg_forward_eps.text)
 
     # avg pe
@@ -266,71 +269,23 @@ class Raw():
         div_growth_3_yr_avg = tree.xpath('//*[@id="dividend"]/div/table[2]/tbody/tr[3]/td[2]/span[2]/text()')
 
         self.div_avg_growth = self._get_float_value('div_avg_growth', div_growth_3_yr_avg)
-        
-        price_to_op_cash_flow = tree.xpath('//*[@id="ratios"]/div/table[2]/tbody/tr[8]/td[2]/span[2]/text()')
-        self.price_to_op_cash_flow = self._get_float_value('price_to_op_cash_flow', price_to_op_cash_flow)
-
-        ev = tree.xpath('//*[@id="stock-header"]/div/div[1]/div/div[3]/div[8]/text()')
-        self.ev = ev
-
-        self.pe = 0.1
-        self.cur_ratio = 0
-        self.fwd_pe = 0.1
-        self.pb = 0.1
-        self.ps = 0.1
-        self.ev_to_sales = 0.1
-        self.ev_to_ebitda = 0.1
-        self.price_to_op_cash_flow = 0.1
-        tbody = tree.xpath('//*[@id="ratios"]/div/table[2]/tbody/tr')
-        for tr_idx in range(len(tbody)):
-            key = tree.xpath(f'//*[@id="ratios"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[1]/a/text()')
-            val = tree.xpath(f'//*[@id="ratios"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[2]/span[2]/text()')
-            key = key[0].replace('\n', '')
-            # self.logger.debug(f"key={key}, val={val}")
-            if key == 'PE Ratio':
-                self.pe = self._get_float_value('pe', val)
-            if key == 'Forward PE Ratio':
-                self.fwd_pe = self._get_float_value('fwd_pe', val)
-            if key == 'PB Ratio':
-                self.pb = self._get_float_value('pb', val)
-            if key == 'PS Ratio':
-                self.ps = self._get_float_value('ps', val)
-            if key == 'Price-to-Operating-Cash-Flow':
-                self.price_to_op_cash_flow = self._get_float_value('price_to_op_cash_flow', val)
-            if key == 'Current Ratio':
-                self.cur_ratio = self._get_float_value('cur_ratio', val)
-            if key == 'EV-to-Revenue':
-                self.ev_to_sales = self._get_float_value('ev_to_sales', val)
-            if key == 'EV-to-EBITDA':
-                self.ev_to_ebitda = self._get_float_value('ev_to_ebitda', val)
-
-
                 
         self.dbt_to_equity = 0
-        tbody = tree.xpath('//*[@id="financial-strength"]/div/table[2]/tbody/tr')
+        tbody = tree.xpath('//*[@id="financial-strength"]/div/table/tbody/tr')
         for tr_idx in range(len(tbody)):
-            key = tree.xpath(f'//*[@id="financial-strength"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[1]/a/text()')
-            val = tree.xpath(f'//*[@id="financial-strength"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[2]/span[2]/text()')
+            key = tree.xpath(f'//*[@id="financial-strength"]/div/table/tbody/tr[{tr_idx+1}]/td[2]/a/text()')
+            val = tree.xpath(f'//*[@id="financial-strength"]/div/table/tbody/tr[{tr_idx+1}]/td[3]/span/span/text()')
             key = key[0].replace('\n', '')
             if key == 'Debt-to-Equity':
                 self.dbt_to_equity = self._get_float_value('dbt_to_equity', val)
-        
-    
-        self.rev_growth_3yr = 0
-        tbody = tree.xpath('//*[@id="profitability"]/div/table[2]/tbody/tr')
-        for tr_idx in range(len(tbody)):
-            key = tree.xpath(f'//*[@id="profitability"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[1]/a/text()')
-            val = tree.xpath(f'//*[@id="profitability"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[2]/span[2]/text()')
-            key = key[0].replace('\n', '')
-            if key == '3-Year Revenue Growth Rate':
-                self.rev_growth_3yr = self._get_float_value('rev_growth_3yr', val)
+
 
         self.div_yield = 0
         self.div_payout_ratio = 0
-        tbody = tree.xpath('//*[@id="dividend"]/div/table[2]/tbody/tr')
+        tbody = tree.xpath('//*[@id="dividend"]/div/table/tbody/tr')
         for tr_idx in range(len(tbody)):
-            key = tree.xpath(f'//*[@id="dividend"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[1]/a/text()')
-            val = tree.xpath(f'//*[@id="dividend"]/div/table[2]/tbody/tr[{tr_idx+1}]/td[2]/span[2]/text()')
+            key = tree.xpath(f'//*[@id="dividend"]/div/table/tbody/tr[{tr_idx+1}]/td[2]/a/text()')
+            val = tree.xpath(f'//*[@id="dividend"]/div/table/tbody/tr[{tr_idx+1}]/td[3]/span/span/text()')
             key = key[0].replace('\n', '')
             if key == 'Dividend Yield %':
                 self.div_yield = self._get_float_value('div_yield', val)
@@ -344,28 +299,6 @@ class Raw():
 
         latest_rate = tree.xpath('//*[@id="t-content-main-content"]/div/table/tr/td/div/table/tr[last()]/td[11]/text()')
         self.latest_treasury_rate = self._get_float_value('latest_treasury_rate', latest_rate)
-
-    def macrotrends_fcf(self):
-        # self.logger.debug(f'__________________________________________')
-        # fcf_sum = 0
-        
-        # try:
-        #     page = requests.get(f'https://www.macrotrends.net/stocks/charts/{self.ticker}/microsoft/free-cash-flow')
-        #     tree = html.fromstring(page.content)
-        # except TooManyRedirects:
-        #     pass
-
-        # for i in range(1, 11):
-        #     fcf = tree.xpath(f'//*[@id="style-1"]/div[1]/table/tbody/tr[{i}]/td[2]/text()')
-        #     fcf_val = self._get_float_value('fcf_val', fcf)
-        #     fcf_sum = fcf_sum + fcf_val
-        
-        # fcf_avg = round(fcf_sum / 10, 2)
-        # self.logger.debug(f"fcf_avg {fcf_avg}")
-
-        # find other source to calculate........
-
-        self.avg_fcf_of_last_10_years = 100
 
     def _get_page_for_exchanges(self, url, anchor):
         # nasdaq_url = f'https://www.marketbeat.com/stocks/{exchange}/{self.ticker}'
